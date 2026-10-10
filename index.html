@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veriscan NG — Link &amp; Message Risk Checker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0f;
+    --bg-grid: #0d1414;
+    --panel: #121a1a;
+    --panel-raised: #17201f;
+    --border: #22302e;
+    --accent: #00e5c7;
+    --accent-dim: #00e5c733;
+    --text: #e8f1f0;
+    --text-muted: #7a8c8a;
+    --safe: #4ade80;
+    --suspicious: #ffb84d;
+    --danger: #ff5d5d;
+    --font-head: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100%;
+  }
+
+  body {
+    background-image:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: 36px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 20px 80px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  header {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .brand .tag { display: none; }
+  @media (min-width: 480px) {
+    .brand .tag { display: inline; }
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--font-head);
+  }
+
+  .brand .mark {
+    color: var(--accent);
+    font-size: 22px;
+  }
+
+  .brand .name {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .brand .tag {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .status-pill {
+    font-size: 11px;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--suspicious);
+  }
+
+  main {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  h1 {
+    font-family: var(--font-head);
+    font-size: clamp(28px, 5vw, 38px);
+    line-height: 1.15;
+    font-weight: 700;
+    margin: 0 0 14px;
+  }
+
+  p.lede {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 0 0 32px;
+    max-width: 54ch;
+  }
+
+  .terminal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 20px 60px -20px rgba(0,0,0,0.6);
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--panel-raised);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .terminal-bar .tdot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #3a4645;
+  }
+
+  .terminal-bar .label {
+    margin-left: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .terminal-body {
+    padding: 22px;
+  }
+
+  .prompt-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    transition: border-color 0.15s ease;
+  }
+
+  .prompt-row:focus-within {
+    border-color: var(--accent);
+  }
+
+  .prompt-sign {
+    color: var(--accent);
+    font-weight: 600;
+    user-select: none;
+    margin-right: 10px;
+  }
+
+  .prompt-cmd {
+    color: var(--text-muted);
+    white-space: nowrap;
+    margin-right: 12px;
+  }
+
+  #urlInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    min-width: 0;
+    padding-left: 2px;
+  }
+
+  #urlInput::placeholder {
+    color: #45524f;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+  }
+
+  button#checkBtn {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #06201b;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+  }
+
+  button#checkBtn:hover { box-shadow: 0 0 0 3px var(--accent-dim); }
+  button#checkBtn:active { transform: scale(0.98); }
+  button#checkBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button#checkBtn:disabled { opacity: 0.6; cursor: progress; }
+
+  .log {
+    margin-top: 20px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .log.active { display: flex; }
+
+  .log .line {
+    opacity: 0;
+    animation: reveal 0.25s ease forwards;
+  }
+
+  @keyframes reveal {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .log .line .ok { color: var(--accent); }
+
+  .result {
+    margin-top: 22px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    display: none;
+  }
+
+  .result.active { display: block; }
+
+  .verdict-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .verdict-badge {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+  }
+
+  .verdict-badge.safe { background: #4ade8022; color: var(--safe); border: 1px solid #4ade8055; }
+  .verdict-badge.suspicious { background: #ffb84d22; color: var(--suspicious); border: 1px solid #ffb84d55; }
+  .verdict-badge.danger { background: #ff5d5d22; color: var(--danger); border: 1px solid #ff5d5d55; }
+
+  .verdict-score {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .reasons {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .reasons li {
+    font-size: 13.5px;
+    color: var(--text);
+    display: flex;
+    gap: 10px;
+    line-height: 1.5;
+  }
+
+  .reasons li .bullet {
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .disclaimer {
+    margin-top: 18px;
+    font-size: 11.5px;
+    color: #4d5957;
+    line-height: 1.6;
+  }
+
+  footer {
+    width: 100%;
+    max-width: 640px;
+    margin-top: 40px;
+    font-size: 12px;
+    color: #3d4a48;
+    text-align: center;
+  }
+
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span class="mark">◈</span>
+      <span class="name">Veriscan<span style="color:var(--accent)">NG</span></span>
+      <span class="tag">/ link &amp; message risk checker</span>
+    </div>
+    <div class="status-pill"><span class="dot"></span> demo mode</div>
+  </header>
+
+  <main>
+    <h1>Paste a link. Know before you click.</h1>
+    <p class="lede">
+      Veriscan checks suspicious links and messages for the scam patterns
+      targeting Nigerians right now — fake BVN alerts, CBN refund texts,
+      bank-blocked warnings, and more. This is a working preview; live
+      scanning connects soon.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+        <span class="label">veriscan — scan session</span>
+      </div>
+      <div class="terminal-body">
+        <form id="scanForm">
+          <div class="prompt-row">
+            <span class="prompt-sign">$</span>
+            <span class="prompt-cmd">veriscan check</span>
+            <input
+              id="urlInput"
+              type="text"
+              placeholder="paste a link or message text…"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Link or message to check"
+              required
+            >
+          </div>
+          <div class="actions">
+            <button id="checkBtn" type="submit">Run check</button>
+          </div>
+        </form>
+
+        <div class="log" id="log" aria-live="polite"></div>
+
+        <div class="result" id="result">
+          <div class="verdict-row">
+            <span class="verdict-badge" id="verdictBadge"></span>
+            <span class="verdict-score" id="verdictScore"></span>
+          </div>
+          <ul class="reasons" id="reasons"></ul>
+        </div>
+
+        <p class="disclaimer" id="disclaimer"></p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Veriscan NG — built by a Nigerian cyber security student · demo preview, no data leaves your browser yet
+  </footer>
+
+<script>
+(function () {
+  const form = document.getElementById('scanForm');
+  const input = document.getElementById('urlInput');
+  const btn = document.getElementById('checkBtn');
+  const log = document.getElementById('log');
+  const result = document.getElementById('result');
+  const badge = document.getElementById('verdictBadge');
+  const score = document.getElementById('verdictScore');
+  const reasons = document.getElementById('reasons');
+  const disclaimer = document.getElementById('disclaimer');
+
+  const SCAM_KEYWORDS = [
+    { re: /bvn/i, label: 'Message references BVN verification/suspension — a known scam pattern' },
+    { re: /cbn|refund|palliative/i, label: 'Mentions CBN refund/palliative language — matches reported scam campaigns' },
+    { re: /opay|moniepoint|account.*block/i, label: 'Claims an account will be blocked — common urgency-pressure tactic' },
+    { re: /nysc/i, label: 'References NYSC posting/allowance — matches known fake-NYSC scam format' },
+    { re: /winner|lottery|claim.*prize/i, label: 'Lottery/prize-claim language detected' },
+    { re: /bit\.ly|tinyurl|t\.co|is\.gd/i, label: 'Uses a URL shortener, which can mask the real destination' },
+  ];
+
+  function fakeAnalyze(value) {
+    const hits = SCAM_KEYWORDS.filter(k => k.re.test(value));
+    const looksLikeUrl = /^(https?:\/\/|www\.)/i.test(value.trim());
+
+    let level = 'safe';
+    let scoreVal = 92;
+    let out = [];
+
+    if (hits.length >= 2) {
+      level = 'danger';
+      scoreVal = 18;
+      out = hits.map(h => h.label);
+    } else if (hits.length === 1) {
+      level = 'suspicious';
+      scoreVal = 54;
+      out = hits.map(h => h.label);
+      out.push('Only one strong signal found — treat with caution, not certainty');
+    } else if (looksLikeUrl) {
+      level = 'safe';
+      scoreVal = 88;
+      out = ['No known Nigerian scam patterns matched', 'No reputation/SSL/WHOIS checks run yet — this is a keyword-only demo'];
+    } else {
+      level = 'suspicious';
+      scoreVal = 50;
+      out = ['No URL detected — pattern-matching against message text only', 'Full link analysis (SSL, domain age, reputation) connects in the next build phase'];
+    }
+
+    return { level, scoreVal, out };
+  }
+
+  function typeLog(lines, done) {
+    log.innerHTML = '';
+    log.classList.add('active');
+    let i = 0;
+    function next() {
+      if (i >= lines.length) { done(); return; }
+      const div = document.createElement('div');
+      div.className = 'line';
+      div.style.animationDelay = '0ms';
+      div.innerHTML = lines[i];
+      log.appendChild(div);
+      i++;
+      setTimeout(next, 220);
+    }
+    next();
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const value = input.value.trim();
+    if (!value) return;
+
+    btn.disabled = true;
+    result.classList.remove('active');
+    log.innerHTML = '';
+
+    const steps = [
+      'reading input…',
+      'checking against Nigerian scam pattern set… <span class="ok">ok</span>',
+      'scanning for suspicious keywords… <span class="ok">ok</span>',
+      'compiling risk score…'
+    ];
+
+    typeLog(steps, function () {
+      const { level, scoreVal, out } = fakeAnalyze(value);
+
+      badge.className = 'verdict-badge ' + level;
+      badge.textContent = level === 'safe' ? 'LOW RISK' : level === 'suspicious' ? 'SUSPICIOUS' : 'HIGH RISK';
+      score.textContent = 'risk score ' + scoreVal + ' / 100';
+
+      reasons.innerHTML = '';
+      out.forEach(function (r) {
+        const li = document.createElement('li');
+        li.innerHTML = '<span class="bullet">–</span><span>' + r + '</span>';
+        reasons.appendChild(li);
+      });
+
+      disclaimer.textContent = 'Demo mode: this result is from local keyword matching only, not a live scan. Domain age, SSL and reputation checks connect once the backend is wired up.';
+
+      result.classList.add('active');
+      btn.disabled = false;
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
